@@ -3,6 +3,21 @@ os: linux
 files:
   - source: /
     destination: /var/www/vhosts/yan.bbtdevelopment.com/httpdocs/
+permissions:
+  - object: /var/www/vhosts/yan.bbtdevelopment.com/httpdocs
+    pattern: "**"
+    owner: abryan
+    group: psacln
+    mode: 644 # owner = bbtm_yan and mode = 644 (-rw-r--r--).
+    type:
+      - file
+  - object: /var/www/vhosts/yan.bbtdevelopment.com/httpdocs
+    pattern: "**"
+    owner: abryan
+    group: psacln
+    mode: 755 # owner = bbtm_yan and mode = 755 (-rwxr-xr-x).
+    type:
+      - directory
 #hooks:
   #BeforeInstall:
     #- location: scripts/before_install.sh
