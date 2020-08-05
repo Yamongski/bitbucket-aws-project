@@ -1,5 +1,6 @@
 #!/bin/bash
-cd /var/www/vhosts/yan.bbtdevelopment.com/httpdocs/
-sudo npm install
-curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
-sudo composer install --ignore-platform-reqs
+cd /var/www/vhosts/yan.bbtdevelopment.com/httpdocs
+#export COMPOSER_HOME="$HOME/.config/composer";
+#composer
+#composer install --ignore-platform-reqs
+/opt/plesk/php/7.2/bin/php /usr/lib/plesk-9.0/composer.phar install
