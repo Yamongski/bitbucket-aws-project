@@ -1,7 +1,7 @@
 image: php:7.2-fpm
 
 pipelines:
-  default:
+  master:
     - step: 
         name: Node Build
         image: node:8.9.4
@@ -59,6 +59,12 @@ pipelines:
               IGNORE_APPLICATION_STOP_FAILURES: 'true'
               FILE_EXISTS_BEHAVIOR: 'OVERWRITE'
               FOLDER: 'sample-codedeploy'
+    feature/*:
+      - step:
+          image: openjdk:8 # This step uses its own image
+          script:
+            - echo "This script runs only on commit to branches with names that match the feature/* pattern."      
+      
         after-script:
           - ALERT_TYPE="Success"
           - if [[ $BITBUCKET_EXIT_CODE -ne 0 ]]; then ALERT_TYPE="Error" ; fi
