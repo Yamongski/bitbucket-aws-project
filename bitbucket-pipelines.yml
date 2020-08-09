@@ -29,8 +29,6 @@ pipelines:
         script:
           - apt-get update
           - apt-get install -y zip
-          - apt-get install -y git
-          - git clone <repo>
           - zip -r application1.zip .
           - pipe: atlassian/aws-code-deploy:0.5.3
             name: Upload to S3
