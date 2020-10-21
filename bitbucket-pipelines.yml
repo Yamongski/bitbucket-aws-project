@@ -1,85 +1,102 @@
-image: php:7.2-fpm
-
-pipelines:
-  default:
-    - step: 
+image: atlassian/default-image:2
+definitions:
+  steps:
+    - step: &build1
         name: Node Build
         image: node:8.9.4
         caches:
           - node
         script:
           - npm install
-          #- npm run dev
-    - step: &build     # anchor '&' which defines a chunk of configuration
-        name: Composer Build
-        image: composer
-        caches:
-          - composer
-        script:
-          - apt-get update && apt-get install -y unzip
-          - curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
-          - composer install --ignore-platform-reqs
-          - ln -f -s .env.pipelines .env     # make sure that you have in your root folder: .env.pipelines 
-        services:
-          - mysql
     - step: &deploy
         name: Deploy to Staging
         deployment: Staging
-        # trigger: manual     # Uncomment to make this a manual step
         script:
           - apt-get update
           - apt-get install -y zip
           - zip -r application1.zip .
           - pipe: atlassian/aws-code-deploy:0.5.3
-            name: Upload to S3
             variables:
-              AWS_DEFAULT_REGION: $AWS_DEFAULT_REGION
+              AWS_DEFAULT_REGION: 'ap-southeast-2'
               AWS_ACCESS_KEY_ID: $AWS_ACCESS_KEY_ID
               AWS_SECRET_ACCESS_KEY: $AWS_SECRET_ACCESS_KEY
-              APPLICATION_NAME: $APPLICATION_NAME
-              S3_BUCKET: $S3_BUCKET
+              APPLICATION_NAME: 'CodeDeployApp'
+              S3_BUCKET: 'bitbucket-codedeploy-artifact-repository'
               COMMAND: 'upload'
               ZIP_FILE: 'application1.zip'
-              VERSION_LABEL: sample_$(date +%Y-%m-%d)_$BITBUCKET_BUILD_NUMBER
-              FOLDER: 'sample-codedeploy'
+              VERSION_LABEL: yan.kiwi$(date +%Y-%m-%d)_$BITBUCKET_BUILD_NUMBER
+              FOLDER: 'yan.bbtdevelopment'
           - pipe: atlassian/aws-code-deploy:0.5.3
-            name: Deploy to Delorean EC2
             variables:
-              AWS_DEFAULT_REGION: $AWS_DEFAULT_REGION
+              AWS_DEFAULT_REGION: 'ap-southeast-2'
               AWS_ACCESS_KEY_ID: $AWS_ACCESS_KEY_ID
               AWS_SECRET_ACCESS_KEY: $AWS_SECRET_ACCESS_KEY
-              APPLICATION_NAME: $APPLICATION_NAME
-              DEPLOYMENT_GROUP: $DEPLOYMENT_GROUP
-              S3_BUCKET: $S3_BUCKET
+              APPLICATION_NAME: 'CodeDeployApp'
+              DEPLOYMENT_GROUP: 'staging-deployment-group'
+              S3_BUCKET: 'bitbucket-codedeploy-artifact-repository'
               COMMAND: 'deploy'
               WAIT: 'true'
-              VERSION_LABEL: sample_$(date +%Y-%m-%d)_$BITBUCKET_BUILD_NUMBER
+              VERSION_LABEL: yan.kiwi$(date +%Y-%m-%d)_$BITBUCKET_BUILD_NUMBER
               IGNORE_APPLICATION_STOP_FAILURES: 'true'
               FILE_EXISTS_BEHAVIOR: 'OVERWRITE'
-              FOLDER: 'sample-codedeploy'
-    feature/*:
-      - step:
-          image: openjdk:8 # This step uses its own image
-          script:
-            - echo "This script runs only on commit to branches with names that match the feature/* pattern."      
-      
+              FOLDER: 'yan.bbtdevelopment' 
         after-script:
           - ALERT_TYPE="Success"
           - if [[ $BITBUCKET_EXIT_CODE -ne 0 ]]; then ALERT_TYPE="Error" ; fi
           - pipe: atlassian/email-notify:0.3.12
             variables:
-              USERNAME: 'example@email.com'
+              USERNAME: 'abryan@bbtdigital.com'
               PASSWORD: $GMAIL_PASSWORD
-              FROM: 'example@email.com'
-              TO: 'example@email.com'
+              FROM: 'abryan@bbtdigital.com'
+              TO: 'abryan@bbtdigital.com'
               HOST: 'smtp.gmail.com'
               SUBJECT: '${ALERT_TYPE}:Bitbucket Pipe Notification for ${BITBUCKET_BRANCH}'
-definitions: 
-  services: 
-    mysql: 
-      image: mysql:5.7 
-      variables: 
-        DB_NAME=database_name
-        DB_USER=database_user
-        DB_PASSWORD=database_password
-        DB_HOST=127.0.0.1
+pipelines:
+  branches:
+    feature/*:
+      - step:
+          image: openjdk:8 # This step uses its own image
+          script:
+            - echo "This script runs only on commit to branches with names that match the feature/* pattern."
+    develop:
+      - step: *build1
+      - step: 
+          <<: *deploy
+          name: Deploy to Staging
+          deployment: staging            
+    master:
+      - step: *build1
+      - step:
+          <<: *deploy
+          name: Deploy to Prod
+          deployment: production
+          trigger: manual
+          script:
+            - apt-get update
+            - apt-get install -y zip
+            - zip -r application1.zip .
+            - pipe: atlassian/aws-code-deploy:0.5.3
+              variables:
+                AWS_DEFAULT_REGION: 'ap-southeast-2'
+                AWS_ACCESS_KEY_ID: $AWS_ACCESS_KEY_ID
+                AWS_SECRET_ACCESS_KEY: $AWS_SECRET_ACCESS_KEY
+                APPLICATION_NAME: 'CodeDeployApp'
+                S3_BUCKET: 'bitbucket-codedeploy-artifact-repository'
+                COMMAND: 'upload'
+                ZIP_FILE: 'application1.zip'
+                VERSION_LABEL: yan.kiwi$(date +%Y-%m-%d)_$BITBUCKET_BUILD_NUMBER
+                FOLDER: 'yan.bbtdevelopment'
+            - pipe: atlassian/aws-code-deploy:0.5.3
+              variables:
+                AWS_DEFAULT_REGION: 'ap-southeast-2'
+                AWS_ACCESS_KEY_ID: $AWS_ACCESS_KEY_ID
+                AWS_SECRET_ACCESS_KEY: $AWS_SECRET_ACCESS_KEY
+                APPLICATION_NAME: 'CodeDeployApp'
+                DEPLOYMENT_GROUP: 'production-deployment-group'
+                S3_BUCKET: 'bitbucket-codedeploy-artifact-repository'
+                COMMAND: 'deploy'
+                WAIT: 'true'
+                VERSION_LABEL: yan.kiwi$(date +%Y-%m-%d)_$BITBUCKET_BUILD_NUMBER
+                IGNORE_APPLICATION_STOP_FAILURES: 'true'
+                FILE_EXISTS_BEHAVIOR: 'OVERWRITE'
+                FOLDER: 'yan.bbtdevelopment'
